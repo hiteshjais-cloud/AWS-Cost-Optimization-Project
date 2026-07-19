@@ -45,6 +45,16 @@ Once the scan completes, a single consolidated email is sent via SNS listing exa
 
 The result: unattached, forgotten snapshots stop quietly accumulating storage cost, without needing any ongoing manual effort.
 
+## How to Deploy
+
+1. **Create the SNS topic** — go to SNS → Create topic → Standard → give it a name (e.g. `snapshots`) → create an email subscription and confirm it via the link AWS sends you.
+2. **Create the Lambda function** — Runtime: Python 3.12+, paste in [lambda_function_by_claudecode.py](./lambda_function_by_claudecode.py)
+3. **Set environment variables** on the function:
+   - `TOPIC_ARN` → your SNS topic ARN
+   - `IDLE_THRESHOLD_DAYS` → `20` (or your preferred threshold)
+4. **Attach the IAM policy** — apply [`iam_policy.json`](./iam_policy.json) to the Lambda's execution role (replace `YOUR_ACCOUNT_ID` with your actual AWS account ID).
+5. **Create the EventBridge trigger** — Add trigger → EventBridge (CloudWatch Events) → create a new rule with a cron schedule (e.g. `cron(30 7 * * ? *)` for daily 1 PM IST) → attach it to the Lambda.
+6. **Test manually** — invoke the Lambda with a test event to confirm the flow works before relying on the schedule.
 ## Architecture Flow
 
 ```mermaid
@@ -96,7 +106,7 @@ Full policy JSON:  [iam_policy.json](./iam_policy.json)
 6. Collect all deleted snapshot IDs, and publish a single summary message to the SNS topic once the scan is complete.
 7. SNS forwards this as an email notification.
 
-Full source: ./lambda_function_by_claudecode.py
+Full source: [lambda_function_by_claudecode.py](./lambda_function_by_claudecode.py)
 ## Issue Faced & Fix
 
 > **⚠ Issue:** During testing, CloudWatch Logs showed an `InvalidParameterException` caused by an incorrect SNS Topic ARN.
@@ -117,16 +127,6 @@ A rough, low-level estimate based on the current AWS EBS Standard-tier snapshot 
 
 Even a small team accumulating 5 forgotten snapshots a month saves a small but real amount — and it compounds every month those snapshots would otherwise sit unused. Exact figures for your account can be checked in Cost Explorer under usage type `EBS:SnapshotUsage`.
 
-## Screenshots
-
-> Replace these with your actual screenshots in the `screenshots/` folder. Redact account IDs and email addresses before uploading.
-
-| Description | Screenshot |
-|---|---|
-| EventBridge trigger configuration | `screenshots/eventbridge_trigger.png` |
-| Lambda function console | `screenshots/lambda_console.png` |
-| CloudWatch Logs — successful run | `screenshots/cloudwatch_logs_success.png` |
-| SNS email notification received | `screenshots/sns_email_notification.png` |
 
 ## Testing & Validation
 
@@ -143,11 +143,3 @@ To validate the function before relying on the daily schedule:
 - Reduces unnecessary storage costs from forgotten snapshots.
 - An email notification containing the IDs of all deleted snapshots is sent after each successful cleanup.
 - On failure, CloudWatch Logs provide the error trail for quick debugging.
-
-## Future Improvements
-
-- Move from console-based setup to **Terraform** for repeatable, version-controlled infrastructure.
-- Use **SNS message filtering / formatting** for cleaner, more readable email notifications instead of raw text.
-- Add **tag-based exclusion** (e.g. `DoNotDelete=true`) so critical snapshots are never auto-deleted regardless of age.
-- Extend to **Amazon Data Lifecycle Manager (DLM)** policies for organization-wide snapshot retention rules.
-- Add a **dry-run mode** (log what *would* be deleted without deleting) for safer testing in production accounts.
