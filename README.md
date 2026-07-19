@@ -60,49 +60,21 @@ flowchart TD
 
 ## IAM Permissions
 
-The Lambda execution role was granted the following permissions, following the principle of least privilege:
-
-| Permission | Purpose |
-|---|---|
-| `ec2:DescribeSnapshots` | List all snapshots in the account |
-| `ec2:DescribeVolumes` | Check if a snapshot's source volume still exists / is attached |
-| `ec2:DeleteSnapshot` | Delete qualifying idle snapshots |
-| `sns:Publish` | Send the notification message to the SNS topic |
+The Lambda execution role follows the principle of least privilege — scoped only to the EC2, SNS, and CloudWatch Logs actions this function actually needs.
 
 Full policy JSON: [`iam_policy.json`](./iam_policy.json)
 
 ## Lambda Function Logic
 
-1. Fetch all EC2 snapshots in the account.
-2. For each snapshot, check if it is unattached to any active volume.
-3. If unattached, check how long it's been sitting idle.
-4. If idle for **20+ days**, delete the snapshot and record its ID. Snapshots newer than 20 days are skipped to avoid deleting recent backups that may still be required.
-5. After processing all snapshots, publish a summary message (list of deleted snapshot IDs) to the SNS topic.
-6. SNS forwards this as an email notification.
+1. Fetch all EC2 snapshots owned by this account.
+2. For each snapshot, skip it if it hasn't yet crossed the **20-day idle threshold**.
+3. If the snapshot has no `VolumeId` at all, it's already orphaned — delete it.
+4. Otherwise, look up the source volume: if it exists but has no attachments (i.e., not attached to any running instance), delete the snapshot.
+5. If the source volume no longer exists at all (`InvalidVolume.NotFound`), the snapshot is orphaned — delete it.
+6. Collect all deleted snapshot IDs, and publish a single summary message to the SNS topic once the scan is complete.
+7. SNS forwards this as an email notification.
 
 Full source: [`lambda_function.py`](./lambda_function.py)
-
-```python
-def lambda_handler(event, context):
-    deleted_snapshots = []
-    skipped_count = 0
-
-    snapshots = ec2.describe_snapshots(OwnerIds=["self"])["Snapshots"]
-    existing_volume_ids = {v["VolumeId"] for v in ec2.describe_volumes()["Volumes"]}
-
-    for snapshot in snapshots:
-        is_unattached = snapshot.get("VolumeId") not in existing_volume_ids
-        age_days = (datetime.now(timezone.utc) - snapshot["StartTime"]).days
-
-        if is_unattached and age_days >= IDLE_THRESHOLD_DAYS:
-            ec2.delete_snapshot(SnapshotId=snapshot["SnapshotId"])
-            deleted_snapshots.append(snapshot["SnapshotId"])
-        else:
-            skipped_count += 1
-
-    _notify(deleted_snapshots, skipped_count)
-    return {"deleted_count": len(deleted_snapshots), "skipped_count": skipped_count}
-```
 
 ## Issue Faced & Fix
 
