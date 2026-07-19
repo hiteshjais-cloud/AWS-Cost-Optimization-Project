@@ -10,16 +10,15 @@
 ## Table of Contents
 - [Problem Statement](#problem-statement)
 - [Solution Overview](#solution-overview)
+- How to deploy
 - [Architecture Flow](#architecture-flow)
 - [Tech Stack](#tech-stack--services-used)
 - [IAM Permissions](#iam-permissions)
 - [Lambda Function Logic](#lambda-function-logic)
 - [Issue Faced & Fix](#issue-faced--fix)
 - [Estimated Monthly Cost Savings](#estimated-monthly-cost-savings)
-- [Screenshots](#screenshots)
 - [Testing & Validation](#testing--validation)
 - [Outcome](#outcome)
-- [Future Improvements](#future-improvements)
 
 ---
 
