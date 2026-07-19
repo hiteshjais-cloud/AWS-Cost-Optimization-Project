@@ -84,7 +84,7 @@ The Lambda execution role follows the principle of least privilege — scoped on
 | `sns:Publish` | Publishes a message to a specific SNS topic | Sends the cleanup summary email — scoped to one topic ARN, not all of SNS |
 | `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents` | Creates and writes to CloudWatch Log groups/streams | Without this, the function still runs, but no execution logs would be visible for debugging |
 
-Full policy JSON: [`iam_policy.json`](./iam_policy.json)
+Full policy JSON: iam_policy.json
 
 ## Lambda Function Logic
 
@@ -96,7 +96,7 @@ Full policy JSON: [`iam_policy.json`](./iam_policy.json)
 6. Collect all deleted snapshot IDs, and publish a single summary message to the SNS topic once the scan is complete.
 7. SNS forwards this as an email notification.
 
-Full source: [`lambda_function.py`](./lambda_function.py)
+Full source: lambda_function_by_claudecode.py
 
 ## Issue Faced & Fix
 
