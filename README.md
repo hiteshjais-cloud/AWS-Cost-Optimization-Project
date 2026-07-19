@@ -48,7 +48,7 @@ The result: unattached, forgotten snapshots stop quietly accumulating storage co
 
 1. **Create the SNS topic** — go to SNS → Create topic → Standard → give it a name (e.g. `snapshots`) → create an email subscription and confirm it via the link AWS sends you.
 2. **Create the Lambda function** — Runtime: Python 3.12+, paste in [lambda_function_by_claudecode.py](./lambda_function_by_claudecode.py)
-3. **Set environment variables** on the function:
+3. Before deploying, edit TOPIC_ARN and IDLE_THRESHOLD_DAYS directly in the script to match your setup.
    - `TOPIC_ARN` → your SNS topic ARN
    - `IDLE_THRESHOLD_DAYS` → `20` (or your preferred threshold)
 4. **Attach the IAM policy** — apply [`iam_policy.json`](./iam_policy.json) to the Lambda's execution role (replace `YOUR_ACCOUNT_ID` with your actual AWS account ID).
