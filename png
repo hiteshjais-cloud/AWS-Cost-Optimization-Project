@@ -1,0 +1,8 @@
+## Screenshots
+
+| Description | Screenshot |
+|---|---|
+| EventBridge trigger configuration | `screenshots/eventbridge_trigger.png` |
+| Lambda function console | `screenshots/lambda_console.png` |
+| CloudWatch Logs — successful run | `screenshots/cloudwatch_logs_success.png` |
+| SNS email notification received | `screenshots/sns_email_notification.png` |
