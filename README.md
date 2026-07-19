@@ -29,7 +29,21 @@ DevOps engineers create EBS snapshots of volumes when needed — backups, safety
 
 ## Solution Overview
 
-A scheduled Lambda function automatically scans all EC2 snapshots every day, identifies the ones that are unattached to any volume and idle for 20+ days, deletes them, and sends an email summary — removing the need for manual cleanup.
+Instead of relying on someone to manually track and clean up old snapshots, the entire process is automated end-to-end using a scheduled serverless function. The solution is built around four core ideas:
+
+**1. Fully automated, no manual trigger needed**
+An EventBridge cron rule invokes the Lambda function every day at a fixed time — no one has to remember to run a cleanup script.
+
+**2. Safe, criteria-based deletion — not blind deletion**
+A snapshot is only deleted if it meets a clear orphan condition: either it was never attached to a volume, its source volume no longer exists, or the volume exists but isn't attached to anything. This avoids accidentally deleting snapshots that are still actively in use.
+
+**3. Time-based safety buffer**
+Snapshots younger than the idle threshold (20 days) are always skipped, even if they're technically orphaned — this protects recent backups that may still be needed, and gives a grace period before anything is permanently removed.
+
+**4. Visibility after every run**
+Once the scan completes, a single consolidated email is sent via SNS listing exactly which snapshots were deleted — so there's a clear audit trail instead of things silently disappearing in the background. CloudWatch Logs capture the full execution details for deeper debugging if needed.
+
+The result: unattached, forgotten snapshots stop quietly accumulating storage cost, without needing any ongoing manual effort.
 
 ## Architecture Flow
 
@@ -54,13 +68,21 @@ flowchart TD
 | **Amazon SNS** | Sends email notifications after each cleanup run |
 | **Amazon EC2 (Snapshots & Volumes)** | The resources being scanned and cleaned up |
 | **AWS IAM** | Grants Lambda the exact permissions it needs — least privilege |
-| **Python (boto3)** | SDK used to write the Lambda function logic |
+| **Python (boto3)** | SDK used to write the Lambda function logic — code written by Claude, tested and debugged by me |
 | **Amazon CloudWatch Logs** | Used to monitor execution and debug errors |
-| **Claude** | Used to write the Lambda function's Python (boto3) code |
 
 ## IAM Permissions
 
-The Lambda execution role follows the principle of least privilege — scoped only to the EC2, SNS, and CloudWatch Logs actions this function actually needs.
+The Lambda execution role follows the principle of least privilege — scoped only to the exact actions this function needs, nothing broader.
+
+| Permission | What it does | Why it's needed |
+|---|---|---|
+| `ec2:DescribeInstances` | Lists EC2 instances and their running state | Used to identify currently running instances |
+| `ec2:DescribeVolumes` | Lists EBS volumes and their attachment status | Checks whether a snapshot's source volume still exists and is attached |
+| `ec2:DescribeSnapshots` | Lists all EBS snapshots in the account | Needed to scan every snapshot during each run |
+| `ec2:DeleteSnapshot` | Deletes a specific snapshot | Performs the actual cleanup once a snapshot is confirmed orphaned |
+| `sns:Publish` | Publishes a message to a specific SNS topic | Sends the cleanup summary email — scoped to one topic ARN, not all of SNS |
+| `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents` | Creates and writes to CloudWatch Log groups/streams | Without this, the function still runs, but no execution logs would be visible for debugging |
 
 Full policy JSON: [`iam_policy.json`](./iam_policy.json)
 
