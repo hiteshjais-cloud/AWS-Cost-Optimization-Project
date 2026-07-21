@@ -26,23 +26,16 @@
 
 DevOps engineers create EBS snapshots of volumes when needed — backups, safety checkpoints, and the like — but often forget to delete them afterward. Over time, the original EC2 instance and volume may get deleted, but the snapshot stays behind, sitting idle and unattached to anything, quietly adding to the AWS bill.
 
-## Solution Overview
+**Solution Overview**
 
-Instead of relying on someone to manually track and clean up old snapshots, the entire process is automated end-to-end using a scheduled serverless function. The solution is built around four core ideas:
+Instead of relying on manual tracking, the entire process is automated end-to-end using a scheduled serverless function. The solution is built around four core ideas:
 
-**1. Fully automated, no manual trigger needed**
-An EventBridge cron rule invokes the Lambda function every day at a fixed time — no one has to remember to run a cleanup script.
+**Fully automated, no manual trigger needed** — An EventBridge cron rule invokes the Lambda function daily, so no one has to remember to run a cleanup script.
+**Safe, criteria-based deletion** — A snapshot is deleted only if it's orphaned (never attached to a volume, source volume deleted, or volume exists but unattached). Snapshots explicitly tagged DoNotDelete=true are always skipped, giving engineers a manual override for exceptions.
+**Time-based safety buffer** — Snapshots younger than 20 days are always skipped, even if orphaned, giving a grace period before permanent deletion.
+**Visibility after every run** — A consolidated email via SNS lists exactly which snapshots were deleted, with full execution details in CloudWatch Logs for debugging.
 
-**2. Safe, criteria-based deletion — not blind deletion**
-A snapshot is only deleted if it meets a clear orphan condition: either it was never attached to a volume, its source volume no longer exists, or the volume exists but isn't attached to anything. This avoids accidentally deleting snapshots that are still actively in use.
-
-**3. Time-based safety buffer**
-Snapshots younger than the idle threshold (20 days) are always skipped, even if they're technically orphaned — this protects recent backups that may still be needed, and gives a grace period before anything is permanently removed.
-
-**4. Visibility after every run**
-Once the scan completes, a single consolidated email is sent via SNS listing exactly which snapshots were deleted — so there's a clear audit trail instead of things silently disappearing in the background. CloudWatch Logs capture the full execution details for deeper debugging if needed.
-
-The result: unattached, forgotten snapshots stop quietly accumulating storage cost, without needing any ongoing manual effort.
+**The result**: forgotten snapshots stop quietly accumulating storage cost, without any ongoing manual effort.
 
 ## How to Deploy
 
