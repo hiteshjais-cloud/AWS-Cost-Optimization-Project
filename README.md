@@ -97,12 +97,13 @@ Full policy JSON:  [iam_policy.json](./iam_policy.json)
 ## Lambda Function Logic
 
 1. Fetch all EC2 snapshots owned by this account.
-2. For each snapshot, skip it if it hasn't yet crossed the **20-day idle threshold**.
-3. If the snapshot has no `VolumeId` at all, it's already orphaned — delete it.
-4. Otherwise, look up the source volume: if it exists but has no attachments (i.e., not attached to any running instance), delete the snapshot.
-5. If the source volume no longer exists at all (`InvalidVolume.NotFound`), the snapshot is orphaned — delete it.
-6. Collect all deleted snapshot IDs, and publish a single summary message to the SNS topic once the scan is complete.
-7. SNS forwards this as an email notification.
+2. For each snapshot, check for a `DoNotDelete=true` tag — if present, skip it unconditionally, regardless of age or orphan status.
+3. For each snapshot, skip it if it hasn't yet crossed the **20-day idle threshold**.
+4. If the snapshot has no `VolumeId` at all, it's already orphaned — delete it.
+5. Otherwise, look up the source volume: if it exists but has no attachments (i.e., not attached to any running instance), delete the snapshot.
+6. If the source volume no longer exists at all (`InvalidVolume.NotFound`), the snapshot is orphaned — delete it.
+7. Collect all deleted snapshot IDs, and publish a single summary message to the SNS topic once the scan is complete.
+8. SNS forwards this as an email notification.
 
 Full source: [lambda_function_by_claudecode.py](./lambda_function_by_claudecode.py)
 ## Issue Faced & Fix
