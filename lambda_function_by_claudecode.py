@@ -29,7 +29,10 @@ def lambda_handler(event, context):
         snapshot_id = snapshot['SnapshotId']
         volume_id = snapshot.get('VolumeId')
         start_time = snapshot['StartTime']
-
+        tags = {t['Key']: t['Value'] for t in snapshot.get('Tags', [])}
+        if tags.get('DoNotDelete', '').lower() == 'true':
+            print(f"Skipped {snapshot_id} — protected by DoNotDelete tag.")
+            continue
         # Skip snapshots that haven't crossed the idle threshold yet
         age_days = (datetime.now(timezone.utc) - start_time).days
         if age_days < IDLE_THRESHOLD_DAYS:
