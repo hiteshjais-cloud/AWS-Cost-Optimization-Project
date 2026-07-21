@@ -60,6 +60,9 @@ The result: unattached, forgotten snapshots stop quietly accumulating storage co
 flowchart TD
     A[Amazon EventBridge<br/>cron schedule, daily at 1 PM] --> B[Lambda Function Triggered]
     B --> C[Lists all EC2 Snapshots]
+    C --> T{Tagged<br/>DoNotDelete=true?}
+    T -- Yes --> E
+    T -- No --> D
     C --> D{Unattached to a volume?<br/>Idle for 20+ days?}
     D -- No --> E[Skip Snapshot]
     D -- Yes --> F[Delete Snapshot]
